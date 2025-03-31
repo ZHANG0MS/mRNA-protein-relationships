@@ -71,7 +71,7 @@ Protein_totalcount(taxa,1:Protein_size(2))=sum(Protein)';
 for i=1:RNA_size(2)
     RNA_proportional(:,i)=log2(1+RNA(:,i)*1e6/RNA_totalcount(taxa,i));
 end
-%% Scale Protein to 10M
+%% Scale Protein to median of the total amount = 10M
 Protein_proportional=zeros(Protein_size);
 for j=1:Protein_size(2)
     Protein_proportional(:,j)=log2( 1+Protein(:,j)*1e7/Protein_totalcount(taxa,1) );% based on the first replicates
