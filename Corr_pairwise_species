@@ -1,0 +1,117 @@
+% % % % % % % % % % % % % % % % % % % % % % % % % 
+% % % % % % pairwise  % % % % % % % % %  
+% % % % % % % % % % % % % % % % % % % % % % % % % 
+%% to calculate pairwise correlation among different proteins
+% generate pair-wise combination index 
+% INPUT mat_detected && mat_ortholog_protein
+%for id_condition = 1:10
+
+num_condition=6;% default =9 
+if num_condition==9, gramN = [1:3, 8:9,4,5,6:7];end % =58 
+if num_condition==6, gramN = [1:2,4,5,6:7];end % = 59 % all genes with less Aa
+if num_condition==6, gramN = [1,3,4,5,6:7];end % = 59 % all genes with less Aa
+% if num_condition==6, gramN = [1,8,4,5,6:7];end % = 59 % all genes with less Aa
+% if num_condition==6, gramN = [1,9,4,5,6:7];end % = 59 % all genes with less Aa
+% gramN = [1:3, 8:9,4, 5, 6:7];
+Str_gramN = Str_condition(gramN);
+Nidx = nchoosek(1:length(gramN),2); 
+N = gramN(Nidx);
+
+gramP = [5:7];
+Pidx = nchoosek(1:length(gramP),2);
+P = gramP(Pidx);
+%%% for gram-negative
+plotid=0;
+for ii = 1:length(N)
+    id1 = N(ii,1);id2 = N(ii,2);
+    
+    ID_pairwise = logical(mat_detected(:,id1).*mat_detected(:,id2));
+    mat_protein_temp = [mat_ortholog_protein(ID_pairwise,id1), mat_ortholog_protein(ID_pairwise,id2)];
+    % NOT sure if here we need Spearman or Pearson
+    % note Pearson
+    [array_coeff1,array_pval1]=corr( mat_protein_temp(:,1), mat_protein_temp(:,2),'Type','Spearman');
+    square_mat(Nidx(ii,1), Nidx(ii,2)) = array_coeff1;
+    mat_coeff1(ii) = array_coeff1;
+    mat_pval1(ii) = array_pval1;
+    disp(strcat('The PROTEIN correlation for ',convertCharsToStrings( Str_condition(id1)), ' and ',Str_condition(id2), ' = ',num2str(array_coeff1), ' with ', num2str(sum(ID_pairwise)), ' shared orthologs'));
+    
+    % % % % % % Pairwise Gram-negative ortholog  % % % % % % % % % 
+    %% Pairwise Gram-negative ortholog
+    mat_RNA_temp = [mat_ortholog_RNA(ID_pairwise,id1), mat_ortholog_RNA(ID_pairwise,id2)];
+    % NOT sure if here we need Spearman or Pearson
+    [array_coeff2,array_pval2]=corr( mat_RNA_temp(:,1), mat_RNA_temp(:,2),'Type','Spearman');
+    square_mat(Nidx(ii,2), Nidx(ii,1)) = array_coeff2;
+    mat_coeff2(ii) = array_coeff2;
+    mat_pval1(ii) = array_pval2;
+    disp(strcat('The RNA correlation for ', Str_condition(id1), ' and ',Str_condition(id2), ' = ',num2str(array_coeff2), ' with ', num2str(sum(ID_pairwise)), ' shared orthologs'));
+
+    square_matProtein(Nidx(ii,1), Nidx(ii,2)) = array_coeff1;
+    square_pvalProtein(Nidx(ii,1), Nidx(ii,2)) = log10(array_pval1);
+    square_matRNA(Nidx(ii,1), Nidx(ii,2)) = array_coeff2;  
+    square_pvalRNA(Nidx(ii,1), Nidx(ii,2)) = log10(array_pval2);
+    length_mat(Nidx(ii,1), Nidx(ii,2)) = sum(ID_pairwise);
+    
+    tempXX = mat_ortholog_protein(ID_pairwise,id1)-mat_ortholog_RNA(ID_pairwise,id1)+mat_ortholog_RNA(ID_pairwise,id2);
+    tempYY = mat_ortholog_protein(ID_pairwise,id2);
+    
+    % % % % % % pairwise among Pg and LAC  % % % % % % % % %  
+    if plotid==1
+        %if (id1==9) && (id2==4)% TY and Pg   
+        if (id1==4) && (id2==6)% Pg and LAC
+            figure(11)
+            subplot(2,2,1),scatter(mat_RNA_temp(:,1), mat_RNA_temp(:,2));title('mRNA-mRNA')
+            subplot(2,2,2),scatter(mat_protein_temp(:,1), mat_protein_temp(:,2));title('Protein-Protein')
+            subplot(2,2,3),scatter(mat_RNA_temp(:,1), mat_protein_temp(:,1));title([Str_condition(id1)])
+            subplot(2,2,4),scatter(mat_RNA_temp(:,2), mat_protein_temp(:,2));title([Str_condition(id2)])
+        end
+        figure(10+ceil(ii/9)),subplot(3,3,rem(ii,9)+1),hold on, 
+        title(strcat( Str_condition(id1), '-',Str_condition(id2))), xlim([0 20]);ylim([0 20]);
+        %% PTR prediction
+        scatter(tempXX, tempYY);
+        [array_coeffXY,array_pvalXY]=corr( tempXX, tempYY,'Type','Spearman');
+        [array_coeffXY0,array_pvalXY0]=corr( mat_ortholog_RNA(ID_pairwise,id2), mat_ortholog_protein(ID_pairwise,id2),'Type','Spearman');
+        legend({['\rho=',num2str(round(100*array_coeffXY)/100),'\rho_o=',num2str(round(100*array_coeffXY0)/100)],[ 'N=',num2str(length(tempXX))]} ,'Location','southeast','Box','off') ;
+    end
+end
+
+% statistical test
+[p,h] = ranksum(mat_coeff1,mat_coeff2,'Tail','right'); % right: x>y
+[p2,h2] = signrank(mat_coeff1,mat_coeff2,'Tail','right'); % right: x>y
+
+% % % % % % % % % % % % % % % % % % % % % % % % % 
+% % % % % % mRNA-mRNA correlation  % % % % % % % % %  
+% % % % % % % % % % % % % % % % % % % % % % % % % 
+%% correlation among pair-wise
+for ddplot=1:2
+    figure(ddplot)
+ maxN = 0.93 ;
+ minN = min(mat_coeff2)% threshold 1
+%     cdata = [...
+%         minN   0 0 0  0  255  255   255
+%            0 255 255 255 maxN   255   0   0];
+%  cdata = [...
+%         minN   255 255 255  0  0 0 0
+%            0 0 0 0 maxN   255   0   0];
+ cdata = [...
+        minN   0 0 255  0  255 255 255
+           0 255 255 255 maxN   255   0   0];
+
+    addpath('D:\Programs\2020Matlab\Plot_cptcmap');
+    dlmwrite('D:\Programs\2020Matlab\Plot_cptcmap\mycmap.cpt', cdata, ' ');
+    axes; set(gcf,'Position',[100 100 585 476]);
+    if ddplot==1, imagesc(square_matRNA');caxis([0 0.95]);title('mRNA-mRNA correlation');end
+    if ddplot==2, imagesc(square_matProtein');caxis([0 0.95]);title('protein-protein correlation');end
+    set(gca,'XDir','normal')
+    cptcmap('D:\Programs\2020Matlab\Plot_cptcmap\mycmap', 'mapping', 'direct'); 
+    c = colorbar;c.LineWidth = 1.5; c.TickLength = 0.01; c.TickDirection='out';
+%         title('all growth rates');
+    set(gca,'FontSize',12)
+ 
+    set(gca,'xtickLabel',Str_gramN);
+    set(gca,'ytickLabel',Str_gramN);
+% center the label
+ylim([1.5 num_condition+0.5]);  
+  
+    ax=gca;ax.TickDir = 'out';ax.TickLength = [0.02 0.035];
+    ax.LineWidth = 1.5;
+end
